@@ -1,6 +1,11 @@
 #ifndef DECODIFICADOR_DE_FONTE_H
 #define DECODIFICADOR_DE_FONTE_H
 
+#include <string>
+#include <vector>
+
+using namespace std;
+
 string decodificadorDeFonte(const vector<bool>& input){
     string output;
     for(int bit = 0; bit < input.size();){

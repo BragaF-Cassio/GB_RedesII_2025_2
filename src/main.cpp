@@ -177,17 +177,66 @@ int main(int, char**)
                 ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
             );
 
-            
+            string ASCII = "Exemplo";
+
+            //ImGui::Text("Texto codificado = %s", ASCII.c_str());
+            ImGui::InputText("Input Text", &ASCII);
+
+            // Codificador de Fonte
+            vector<bool> binario = codificadorDeFonte(ASCII);
+            vector<float> samples_codificador_fonte;
+            for (bool bit : binario) {
+                for(int i = 0; i < 10; ++i)  // Repete cada bit 10 vezes para melhor visualização
+                    samples_codificador_fonte.push_back((bit ? 1.0f : 0.0f)*MAX_VOLTAGE_LEVEL);
+            }
             ImGui::PlotLines(
-                "Amostras",                     // label
-                samples.data(),                // values pointer
-                static_cast<int>(samples.size()), // count
+                "Amostras Codificador Fonte",                     // label
+                samples_codificador_fonte.data(),                // values pointer
+                static_cast<int>(samples_codificador_fonte.size()), // count
                 0,                             // values_offset
                 nullptr,                       // overlay_text
                 FLT_MAX,                       // scale_min (auto)
                 FLT_MAX,                       // scale_max (auto)
                 ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
             );
+
+            // Codificador de Canal
+            vector<float> bifase = codificadorDeCanal(binario);
+            vector<float> samples_codificador_canal = bifase;
+            ImGui::PlotLines(
+                "Amostras Codificador Canal",                     // label
+                samples_codificador_canal.data(),                // values pointer
+                static_cast<int>(samples_codificador_canal.size()), // count
+                0,                             // values_offset
+                nullptr,                       // overlay_text
+                FLT_MAX,                       // scale_min (auto)
+                FLT_MAX,                       // scale_max (auto)
+                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
+            );
+
+            // Decodificador de Canal
+            binario = decodificadorDeCanal(bifase);
+            vector<float> samples_decodificador_canal;
+            for (bool bit : binario) {
+                for(int i = 0; i < 10; ++i)  // Repete cada bit 10 vezes para melhor visualização
+                    samples_decodificador_canal.push_back((bit ? 1.0f : 0.0f)*MAX_VOLTAGE_LEVEL);
+            }
+            ImGui::PlotLines(
+                "Amostras Decodificador Canal",                     // label
+                samples_decodificador_canal.data(),                // values pointer
+                static_cast<int>(samples_decodificador_canal.size()), // count
+                0,                             // values_offset
+                nullptr,                       // overlay_text
+                FLT_MAX,                       // scale_min (auto)
+                FLT_MAX,                       // scale_max (auto)
+                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
+            );
+
+            // Decodificador de Fonte
+            string ASCII_resultante = decodificadorDeFonte(binario);
+
+            // Mostra o texto decodificado
+            ImGui::Text("Texto decodificado = %s", ASCII_resultante.c_str());
 
             ImGui::End();
         }

@@ -1,11 +1,16 @@
 #ifndef DECODIFICADOR_DE_CANAL_H
 #define DECODIFICADOR_DE_CANAL_H
 
+#include <string>
+#include <vector>
+
+using namespace std;
+
 // Manchester / Bifase-L
 vector<bool> decodificadorDeCanal(vector<float> input){
     vector<bool> output;
-    for(int i = t/2; i < input.size(); i += 2*t){
-        output.push_back(input[i] - input[i + t] < 0);
+    for(int i = T_CONSTANT/2; i < input.size(); i += 2*T_CONSTANT){
+        output.push_back(input[i] - input[i + T_CONSTANT] < 0);
     }
     return output;
 }

@@ -62,6 +62,7 @@ add_executable(graph_analyzer
 )
 
 target_include_directories(graph_analyzer PRIVATE
+    ${OUT_APP}
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
 )

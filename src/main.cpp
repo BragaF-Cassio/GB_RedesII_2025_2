@@ -7,20 +7,9 @@
 // - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
 // - Introduction, links and more at the top of imgui.cpp
 
-#include "imgui.h"
-#include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
-#include <stdio.h>
-#include <SDL3/SDL.h>
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <SDL3/SDL_opengles2.h>
-#else
-#include <SDL3/SDL_opengl.h>
-#endif
+#include "main.h"
 
-#ifdef __EMSCRIPTEN__
-#include "../libs/emscripten/emscripten_mainloop_stub.h"
-#endif
+using namespace std;
 
 // Main code
 int main(int, char**)
@@ -126,8 +115,6 @@ int main(int, char**)
     //IM_ASSERT(font != nullptr);
 
     // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
@@ -169,9 +156,41 @@ int main(int, char**)
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
+        // Janela de gráficos com plotagem de linhas
+        {
+            ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Graphics Window", nullptr, ImGuiWindowFlags_NoCollapse);
+
+            // Generate samples and plot them
+            vector<float> samples;
+            for (int n = 0; n < 100; n++)
+                samples.push_back(sinf(n * 0.2f + ImGui::GetTime() * 1.5f));
+
+            ImGui::PlotLines(
+                "Teste Senoidal",               // label
+                samples.data(),                // values pointer
+                static_cast<int>(samples.size()), // count
+                0,                             // values_offset
+                nullptr,                       // overlay_text
+                FLT_MAX,                       // scale_min (auto)
+                FLT_MAX,                       // scale_max (auto)
+                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
+            );
+
+            
+            ImGui::PlotLines(
+                "Amostras",                     // label
+                samples.data(),                // values pointer
+                static_cast<int>(samples.size()), // count
+                0,                             // values_offset
+                nullptr,                       // overlay_text
+                FLT_MAX,                       // scale_min (auto)
+                FLT_MAX,                       // scale_max (auto)
+                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
+            );
+
+            ImGui::End();
+        }
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
@@ -181,8 +200,6 @@ int main(int, char**)
             ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
             ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
@@ -193,16 +210,6 @@ int main(int, char**)
             ImGui::Text("counter = %d", counter);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
             ImGui::End();
         }
 

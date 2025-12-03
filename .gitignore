@@ -43,3 +43,6 @@
 # Build directory
 build/
 imgui/
+
+# Config file
+imgui.ini

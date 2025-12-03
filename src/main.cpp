@@ -11,6 +11,10 @@
 
 using namespace std;
 
+#define VISIBILITY_MULTIPLIER 10
+#define SENDER_RECEIVER_HEIGHT 500
+#define SENDER_RECEIVER_WIDTH 600
+
 // Main code
 int main(int, char**)
 {
@@ -59,7 +63,7 @@ int main(int, char**)
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     float main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
     SDL_WindowFlags window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    SDL_Window* window = SDL_CreateWindow("Dear ImGui SDL3+OpenGL3 example", (int)(1280 * main_scale), (int)(800 * main_scale), window_flags);
+    SDL_Window* window = SDL_CreateWindow("Analisador de Graficos - Redes II", (int)(1280 * main_scale), (int)(800 * main_scale), window_flags);
     if (window == nullptr)
     {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
@@ -119,6 +123,8 @@ int main(int, char**)
 
     // Main loop
     bool done = false;
+    float noise_level = 0.2f;
+    string ASCII = "abc";
 #ifdef __EMSCRIPTEN__
     // For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
     // You may manually call LoadIniSettingsFromMemory() to load settings from your own storage.
@@ -156,84 +162,148 @@ int main(int, char**)
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        // Janela de gráficos com plotagem de linhas
+        vector<bool> binario_transmite;
+        vector<float> samples_codificador_fonte;
+
+        vector<float> bifase;
+        vector<float> samples_codificador_canal;
+
+        vector<float> canal_ruido;
+
+        vector<float> sinal_recebido_com_ruido;
+
+        vector<bool> binario_recebido;
+        vector<float> samples_decodificador_canal;
+
+        // Janela de gráficos do transmissor
         {
-            ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-            ImGui::Begin("Graphics Window", nullptr, ImGuiWindowFlags_NoCollapse);
-
-            // Generate samples and plot them
-            vector<float> samples;
-            for (int n = 0; n < 100; n++)
-                samples.push_back(sinf(n * 0.2f + ImGui::GetTime() * 1.5f));
-
-            ImGui::PlotLines(
-                "Teste Senoidal",               // label
-                samples.data(),                // values pointer
-                static_cast<int>(samples.size()), // count
-                0,                             // values_offset
-                nullptr,                       // overlay_text
-                FLT_MAX,                       // scale_min (auto)
-                FLT_MAX,                       // scale_max (auto)
-                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
-            );
-
-            string ASCII = "Exemplo";
-
-            //ImGui::Text("Texto codificado = %s", ASCII.c_str());
-            ImGui::InputText("Input Text", &ASCII);
+            ImGui::SetNextWindowSize(ImVec2(SENDER_RECEIVER_WIDTH, SENDER_RECEIVER_HEIGHT), ImGuiCond_Once);
+            ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
+            ImGui::Begin("Janela do Transmissor", nullptr, ImGuiWindowFlags_NoCollapse);
+            
+            ImGui::InputText("Mensagem", &ASCII);
 
             // Codificador de Fonte
-            vector<bool> binario = codificadorDeFonte(ASCII);
-            vector<float> samples_codificador_fonte;
-            for (bool bit : binario) {
-                for(int i = 0; i < 10; ++i)  // Repete cada bit 10 vezes para melhor visualização
+            binario_transmite = codificadorDeFonte(ASCII);
+            for (bool bit : binario_transmite) {
+                for(int i = 0; i < VISIBILITY_MULTIPLIER; ++i)  // Repete cada bit VISIBILITY_MULTIPLIER vezes para melhor visualização
                     samples_codificador_fonte.push_back((bit ? 1.0f : 0.0f)*MAX_VOLTAGE_LEVEL);
             }
             ImGui::PlotLines(
                 "Amostras Codificador Fonte",                     // label
                 samples_codificador_fonte.data(),                // values pointer
                 static_cast<int>(samples_codificador_fonte.size()), // count
-                0,                             // values_offset
-                nullptr,                       // overlay_text
-                FLT_MAX,                       // scale_min (auto)
-                FLT_MAX,                       // scale_max (auto)
-                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
+                0,  
+                nullptr,   
+                -MAX_VOLTAGE_LEVEL,   
+                MAX_VOLTAGE_LEVEL,  
+                ImVec2(0, 125)                 // graph_size: width=0 (auto), height=125
             );
+            ImGui::Text("Bits transmitidos: %d", static_cast<int>(binario_transmite.size()));
+            ImGui::Text("Bits: %s", [&]() {
+                string bits_str;
+                for (bool bit : binario_transmite) {
+                    bits_str += bit ? '1' : '0';
+                }
+                return bits_str.c_str();
+            }());
 
             // Codificador de Canal
-            vector<float> bifase = codificadorDeCanal(binario);
-            vector<float> samples_codificador_canal = bifase;
+            bifase = codificadorDeCanal(binario_transmite);
+            samples_codificador_canal = bifase;
             ImGui::PlotLines(
                 "Amostras Codificador Canal",                     // label
                 samples_codificador_canal.data(),                // values pointer
                 static_cast<int>(samples_codificador_canal.size()), // count
                 0,                             // values_offset
                 nullptr,                       // overlay_text
-                FLT_MAX,                       // scale_min (auto)
-                FLT_MAX,                       // scale_max (auto)
+                -MAX_VOLTAGE_LEVEL,                       // scale_min (auto)
+                MAX_VOLTAGE_LEVEL,                       // scale_max (auto)
                 ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
             );
+            ImGui::Text("Bits codificados: %d", static_cast<int>(bifase.size()/T_CONSTANT));
+            ImGui::Text("Bits: %s", [&]() {
+                string bits_str;
+                for (size_t i = 0; i < bifase.size(); i+=T_CONSTANT) {
+                    // Cada bit é representado por 2*VISIBILITY_MULTIPLIER amostras em codificação biphase
+                    bool bit = bifase[i] > 0.0f; // Verifica o primeiro nível para determinar o bit
+                    bits_str += bit ? '1' : '0';
+                }
+                return bits_str.c_str();
+            }());
+            ImGui::End();
+        }
+
+        // Janela de gráficos do ruído
+        {
+            ImGui::SetNextWindowSize(ImVec2(SENDER_RECEIVER_WIDTH, SENDER_RECEIVER_HEIGHT/2), ImGuiCond_Once);
+            ImGui::SetNextWindowPos(ImVec2(10, SENDER_RECEIVER_HEIGHT + 10), ImGuiCond_Once);
+            ImGui::Begin("Meio em que o sinal trafega", nullptr, ImGuiWindowFlags_NoCollapse);
+
+             ImGui::SliderFloat("Nível de Ruído", &noise_level, 0.0f, 1.0f*(MAX_VOLTAGE_LEVEL*2), "%.2f");
+
+            // Ruído branco
+            // (Simplesmente adiciona valores aleatórios entre -NOISE_LEVEL e +NOISE_LEVEL)
+            for (int i = 0; i < bifase.size(); ++i) {
+                canal_ruido.push_back(((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * noise_level);
+            }
+            ImGui::PlotLines(
+                "Ruído",                     // label
+                canal_ruido.data(),                        // values pointer
+                static_cast<int>(canal_ruido.size()),      // count
+                0,                             // values_offset
+                nullptr,                       // overlay_text
+                -MAX_VOLTAGE_LEVEL,                       // scale_min (auto)
+                MAX_VOLTAGE_LEVEL,                       // scale_max (auto)
+                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
+            );
+
+            for (int i = 0; i < bifase.size(); ++i) {
+                sinal_recebido_com_ruido.push_back(bifase[i] + canal_ruido[i]);
+            }
+            ImGui::PlotLines(
+                "Sinal + Ruído",                     // label
+                sinal_recebido_com_ruido.data(),                // values pointer
+                static_cast<int>(sinal_recebido_com_ruido.size()), // count
+                0,                             // values_offset
+                nullptr,                       // overlay_text
+                -MAX_VOLTAGE_LEVEL*2,                   
+                MAX_VOLTAGE_LEVEL*2,                
+                ImVec2(0, 100)                 // graph_size: width=0 (auto), height=200
+            );
+
+            ImGui::End();
+        }
+
+        // Janela de gráficos do receptor
+        {
+            ImGui::SetNextWindowSize(ImVec2(SENDER_RECEIVER_WIDTH, SENDER_RECEIVER_HEIGHT), ImGuiCond_Once);
+            ImGui::SetNextWindowPos(ImVec2(SENDER_RECEIVER_WIDTH + 10, 10), ImGuiCond_Once);
+            ImGui::Begin("Janela do Receptor", nullptr, ImGuiWindowFlags_NoCollapse);
 
             // Decodificador de Canal
-            binario = decodificadorDeCanal(bifase);
-            vector<float> samples_decodificador_canal;
-            for (bool bit : binario) {
-                for(int i = 0; i < 10; ++i)  // Repete cada bit 10 vezes para melhor visualização
+            string bits_str;
+            binario_recebido = decodificadorDeCanal(sinal_recebido_com_ruido);
+            for (bool bit : binario_recebido) {
+                bits_str += bit ? '1' : '0';
+                for(int i = 0; i < VISIBILITY_MULTIPLIER; ++i)  // Repete cada bit 10 vezes para melhor visualização
                     samples_decodificador_canal.push_back((bit ? 1.0f : 0.0f)*MAX_VOLTAGE_LEVEL);
             }
             ImGui::PlotLines(
-                "Amostras Decodificador Canal",                     // label
+                "Sinal Decodificado do Canal",                     // label
                 samples_decodificador_canal.data(),                // values pointer
                 static_cast<int>(samples_decodificador_canal.size()), // count
                 0,                             // values_offset
                 nullptr,                       // overlay_text
-                FLT_MAX,                       // scale_min (auto)
-                FLT_MAX,                       // scale_max (auto)
+                -MAX_VOLTAGE_LEVEL,                       // scale_min (auto)
+                MAX_VOLTAGE_LEVEL,                       // scale_max (auto)
                 ImVec2(0, 125)                 // graph_size: width=0 (auto), height=200
             );
+            ImGui::Text("Bits recebidos: %d", static_cast<int>(binario_recebido.size()));
+            ImGui::Text("Bits: %s", bits_str.c_str());
 
             // Decodificador de Fonte
-            string ASCII_resultante = decodificadorDeFonte(binario);
+            string ASCII_resultante = decodificadorDeFonte(binario_recebido);
 
             // Mostra o texto decodificado
             ImGui::Text("Texto decodificado = %s", ASCII_resultante.c_str());
@@ -242,7 +312,7 @@ int main(int, char**)
         }
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
+        /*{
             static float f = 0.0f;
             static int counter = 0;
 
@@ -260,7 +330,7 @@ int main(int, char**)
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             ImGui::End();
-        }
+        }*/
 
         // Rendering
         ImGui::Render();

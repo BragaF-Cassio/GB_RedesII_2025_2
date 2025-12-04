@@ -1,9 +1,38 @@
 # GB_RedesII_2025_2
 Trabalho do Grau B de Redes de Computadores: Internetworking, Roteamento e Transmissão. Curso de Ciência da Computação da UNISINOS 2025/2
 
-## Integrantes
+# Integrantes
 - Cássio F. Braga
 - Gabriel C. Walber
+
+# Objetivo
+Desenvolver e aplicar os conceitos de codificação de canal e modulação digital estudados na disciplina de Redes de Computadores, analisando seu impacto na taxa de erro de bits (BER) e na eficiência espectral de sistemas de comunicação.
+
+# Tecnologias Utilizadas
+- Linguagem: C++
+- Dear ImGui
+- SDL 3
+- OpenGL 3
+
+# Funcionamento
+Todas as etapas de interação com o sinal, tanto na codificação quanto na decodificação são visíveis através de gráficos plotados com o Dear ImGui.
+A codificação utilizada é a Manchester, que utiliza a transição de nível de sinal para definir se um bit é 0 ou 1.
+Para a modulação, implementamos a BPSK, QPSK e ASK.
+
+## BPSK
+Utiliza a variação de fase da portadora para definir se o bit transmitido é 0 ou 1. Quando o bit muda, a fase muda em 180º
+
+## QPSK
+Simula uma variação de fase em dois eixos perpendiculares, onde cada par de bits vira um símbolo. 00 fica como um seno, 01 como cosseno, 10 e 11 sendo seus inversos nessa ordem.
+
+## ASK
+Deixa a portadora com sinal 0 quando o bit é 0, e com o sinal de portadora quando o bit é 1.
+
+## Ruído
+Aplica um ruído branco no sinal antes de realizar as etapas de decodificação e demodulação.
+
+## Demodulação e decodificação
+Quando o sinal é demodulado, calcula a BER baseada na quantidade de bits que é diferente dos bits transmitidos.
 
 # Configuração do Ambiente para Computação Gráfica com <img src="https://github.com/user-attachments/assets/db96047c-5e1a-4656-a3af-ee3432f9f35a" alt="OpenGL Logo" height="32" style="vertical-align: middle;" />
 

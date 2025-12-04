@@ -162,3 +162,8 @@ Se tudo estiver correto, o projeto será compilado e executado com sucesso! 🚀
 ---
 
 ![Modelo de Referência](docs/ref-model.png)
+
+## 🎥 O vídeo de demonstração pode ser visto [aqui](https://streamable.com/m0fe04)
+
+## 📈 Gráfico da BER em função da SRN
+![Gráfico BER x SRN](docs/graph.png)

@@ -19,10 +19,10 @@ using namespace std;
 #define F_CARRIER 100           // Carrier frequency in Hz
 
 // Function prototypes
-vector<float> moduladorPSK(const vector<float>& sinal_codificado);
-vector<float> demoduladorPSK(const vector<float>& sinal_recebido);
-vector<float> modulador8PSK(const vector<float>& sinal_codificado);
-vector<float> demodulador8PSK(const vector<float>& sinal_recebido);
+vector<float> moduladorBPSK(const vector<float>& sinal_codificado);
+vector<float> demoduladorBPSK(const vector<float>& sinal_recebido);
+vector<float> moduladorQPSK(const vector<float>& sinal_codificado);
+vector<float> demoduladorQPSK(const vector<float>& sinal_recebido);
 
 // Main code
 int main(int, char**)
@@ -133,7 +133,7 @@ int main(int, char**)
     // Main loop
     bool done = false;
     float noise_level = 0.2f;
-    int current_modulation_type = 0; // 0: BPSK, 1: 8PSK
+    int current_modulation_type = 0; // 0: BPSK, 1: QPSK
     unsigned long total_bits = 0;
     unsigned long error_bits = 0;
     double current_time = 0.0;
@@ -253,7 +253,7 @@ int main(int, char**)
             // Generate samples and plot them
             /*vector<float> samples;
             for (int n = 0; n < bifase_codificador.size()*2; n++)
-                samples.push_back(sinf(n * 0.25f * 3.14159f));
+                samples.push_back(sinf(n * 0.25f * PI));
             ImGui::PlotLines(
                 "Sinal Portadora",               // label
                 samples.data(),                // values pointer
@@ -265,15 +265,15 @@ int main(int, char**)
                 ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
             );*/
 
-            ImGui::Combo("Tipo de Modulação", &current_modulation_type, "BPSK\08PSK\0", 2);
+            ImGui::Combo("Tipo de Modulação", &current_modulation_type, "BPSK\0QPSK\0", 2);
 
             if(current_modulation_type == 0)
-                samples_modulador_psk = moduladorPSK(bifase_codificador);
+                samples_modulador_psk = moduladorBPSK(bifase_codificador);
             else    
             {
                 while(bifase_codificador.size() % 3 != 0)
                     bifase_codificador.push_back(0);
-                samples_modulador_psk = modulador8PSK(bifase_codificador);
+                samples_modulador_psk = moduladorQPSK(bifase_codificador);
             }
             ImGui::PlotLines(
                 "Sinal Modulado",                     // label
@@ -339,9 +339,9 @@ int main(int, char**)
 
             // Demodulador PSK
             if(current_modulation_type == 0)
-                samples_demodulador_psk = demoduladorPSK(sinal_recebido_com_ruido);
+                samples_demodulador_psk = demoduladorBPSK(sinal_recebido_com_ruido);
             else
-                samples_demodulador_psk = demodulador8PSK(sinal_recebido_com_ruido);
+                samples_demodulador_psk = demoduladorQPSK(sinal_recebido_com_ruido);
             ImGui::PlotLines(
                 "Sinal Demodulado",                     // label
                 samples_demodulador_psk.data(),                // values pointer
@@ -441,80 +441,33 @@ int main(int, char**)
     return 0;
 }
 
-vector<float> moduladorPSK(const vector<float>& sinal_codificado) {
+const float PI = 3.14159265f;
+
+vector<float> moduladorBPSK(const vector<float>& sinal_codificado) {
     vector<float> sinal_modulado;
     for (size_t i = 0; i < sinal_codificado.size(); ++i) {
-        float portadora = sinf(2.0f * 3.14159f * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
-        if (sinal_codificado[i] > 0.0f) {
-            // Bit 1: fase 0
-            sinal_modulado.push_back(portadora * MAX_VOLTAGE_LEVEL);
-        } else {
-            // Bit 0: fase PI (inversão da portadora)
-            sinal_modulado.push_back(-portadora * MAX_VOLTAGE_LEVEL);
-        }
+        float portadora = sinf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
+        sinal_modulado.push_back(portadora * sinal_codificado[i]);
     }
     return sinal_modulado;
 }
 
-vector<float> demoduladorPSK(const vector<float>& sinal_recebido) {
+vector<float> demoduladorBPSK(const vector<float>& sinal_recebido) {
     vector<float> sinal_demodulado;
     for (size_t i = 0; i < sinal_recebido.size(); ++i) {
-        float portadora = sinf(2.0f * 3.14159f * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
+        float portadora = sinf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
         float produto = sinal_recebido[i] * portadora; // Multiply the received signal with the carrier signal
         sinal_demodulado.push_back(produto);
     }
     return sinal_demodulado;
 }
 
-vector<float> modulador8PSK(const vector<float>& sinal_codificado) {
-    const float phase_step = 3.14159f / 4.0f; // 45 graus em radianos
-    vector<float> sinal_modulado;
-
-    for (size_t i = 0; i < sinal_codificado.size(); i+=3) {
-        uint8_t symbol = (uint8_t)((sinal_codificado[i] > 0.01f ? 1 : 0) + 2 * (sinal_codificado[i + 1] > 0.01f ? 1 : 0) + 4 * (sinal_codificado[i + 2] > 0.01f ? 1 : 0));
-        float phase = symbol * phase_step;
-        for (int j = 0; j < SAMPLE_RATE / F_CARRIER; ++j) {
-            float t = (j / static_cast<float>(SAMPLE_RATE));
-            float portadora = sinf(2.0f * 3.14159f * F_CARRIER * t + phase);
-            sinal_modulado.push_back(portadora * MAX_VOLTAGE_LEVEL);
-        }
-    }
-
-    return sinal_modulado;
-}
-
-vector<float> demodulador8PSK(const vector<float>& sinal_recebido) {
-    vector<float> sinal_demodulado;
-    size_t samples_per_symbol = SAMPLE_RATE / F_CARRIER;
-    for (size_t i = 0; i < sinal_recebido.size(); i += samples_per_symbol) {
-        float I = 0.0f;
-        float Q = 0.0f;
-        for (size_t j = 0; j < samples_per_symbol; ++j) {
-            float t = (j / static_cast<float>(SAMPLE_RATE));
-            float portadora_cos = cosf(2.0f * 3.14159f * F_CARRIER * t);
-            float portadora_sin = sinf(2.0f * 3.14159f * F_CARRIER * t);
-            I += sinal_recebido[i + j] * portadora_cos;
-            Q += sinal_recebido[i + j] * portadora_sin;
-        }
-        float phase = atan2f(Q, I);
-        //if (phase < 0) phase += 2.0f * 3.14159f; // Normalize phase to [0, 2PI]
-        //uint8_t symbol = static_cast<uint8_t>((phase * 180.0f / 3.14159f + 22.5f) / 45.0f) % 8; // Map phase to symbol
-
-        phase = fmodf(phase, 2.0f * 3.14159f); // Normalize phase to [0, 2π)
-        uint8_t symbol = (uint8_t)(phase * 180.0f / 3.14159f / 45.0f); // Map phase to 3-bit sequence
-
-        sinal_demodulado.push_back((symbol & 0x01) ? MAX_VOLTAGE_LEVEL : -MAX_VOLTAGE_LEVEL);
-        sinal_demodulado.push_back(((symbol >> 1) & 0x01) ? MAX_VOLTAGE_LEVEL : -MAX_VOLTAGE_LEVEL);
-        sinal_demodulado.push_back(((symbol >> 2) & 0x01) ? MAX_VOLTAGE_LEVEL : -MAX_VOLTAGE_LEVEL);
-    }
-    return sinal_demodulado;
-}
-
 vector<float> moduladorQPSK(const vector<float>& sinal_codificado) {
-    // Implementação do modulador QPSK (se necessário)
     vector<float> sinal_modulado;
-    
-
-
     return sinal_modulado;
+}
+
+vector<float> demoduladorQPSK(const vector<float>& sinal_recebido) {
+    vector<float> sinal_demodulado;
+    return sinal_demodulado;
 }

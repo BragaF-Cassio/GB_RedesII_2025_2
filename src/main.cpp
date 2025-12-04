@@ -315,7 +315,7 @@ int main(int, char**)
                 }
                 geraRuido(sinal_bifase_transmitido.second.size(), canal_ruido, noise_level);
                 for (int i = 0; i < sinal_bifase_transmitido.second.size(); ++i) {
-                    sinal_bifase_recebido_com_ruido.second[i] = sinal_bifase_transmitido.second[i] + canal_ruido[i];
+                    sinal_bifase_recebido_com_ruido.second.push_back(sinal_bifase_transmitido.second[i] + canal_ruido[i]);
                 }
             }
             ImGui::PlotLines(

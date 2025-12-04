@@ -1,11 +1,16 @@
-// Dear ImGui: standalone example application for SDL3 + OpenGL
-// (SDL is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan/Metal graphics context creation, etc.)
-
-// Learn about Dear ImGui:
-// - FAQ                  https://dearimgui.com/faq
-// - Getting Started      https://dearimgui.com/getting-started
-// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
-// - Introduction, links and more at the top of imgui.cpp
+/**
+ * Redes de Computadores: Internetworking, Roteamento e Transmissão
+ * Integrantes:
+ *  Cássio F. Braga
+ *  Gabriel C. Walber 
+ * 
+ * Prof: Cristiano B. Both
+ * 
+ * Objetivo: Desenvolver e aplicar os conceitos de codificação de canal e modulação digital estudados na 
+ *   disciplina de Redes de Computadores, analisando seu impacto na taxa de erro de bits (BER) 
+ *   e na eficiência espectral de sistemas de comunicação.
+ * 
+ */
 
 #include "main.h"
 
@@ -15,10 +20,10 @@ using namespace std;
 #define SENDER_RECEIVER_HEIGHT 500
 #define SENDER_RECEIVER_WIDTH 630
 
-#define SAMPLE_RATE 1000        // Samples per second
-#define F_CARRIER 100           // Carrier frequency in Hz
+#define SAMPLE_RATE 1000        // Samples por segundo
+#define F_CARRIER 100           // Frequência da portadora
 
-// Function prototypes
+// Protótipos de função
 vector<float> moduladorBPSK(const vector<float>& sinal_codificado);
 vector<float> demoduladorBPSK(const vector<float>& sinal_recebido);
 vector<float> moduladorQPSK(const vector<float>& sinal_codificado);
@@ -27,8 +32,7 @@ vector<float> demoduladorQPSK(const vector<float>& sinal_recebido);
 // Main code
 int main(int, char**)
 {
-    // Setup SDL
-    // [If using SDL_MAIN_USE_CALLBACKS: all code below until the main loop starts would likely be your SDL_AppInit() function]
+    // Configuração do SDL
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
     {
         printf("Error: SDL_Init(): %s\n", SDL_GetError());
@@ -66,7 +70,7 @@ int main(int, char**)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 #endif
 
-    // Create window with graphics context
+    // Cria janela com contexto gráfico
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
@@ -94,45 +98,25 @@ int main(int, char**)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-    // Setup Dear ImGui style
+    // Configura estilo de cores
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
 
-    // Setup scaling
+    // Configura escala
     ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-    style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+    style.ScaleAllSizes(main_scale);
+    style.FontScaleDpi = main_scale;
 
-    // Setup Platform/Renderer backends
+    // Configura backend e plataforma do ImGui
     ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details. If you like the default font but want it to scale better, consider using the 'ProggyVector' from the same author!
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    // - Our Emscripten build process allows embedding fonts to be accessible at runtime from the "fonts/" folder. See Makefile.emscripten for details.
-    //style.FontSizeBase = 20.0f;
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf");
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf");
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf");
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf");
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
-    //IM_ASSERT(font != nullptr);
-
-    // Our state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    // Main loop
     bool done = false;
-    float noise_level = 0.2f;
+    float noise_level = 0.0f;
     int current_modulation_type = 0; // 0: BPSK, 1: QPSK
     unsigned long total_bits = 0;
     unsigned long error_bits = 0;
@@ -141,21 +125,9 @@ int main(int, char**)
     double ber = 0.0;
     string ASCII = "abc";
 
-#ifdef __EMSCRIPTEN__
-    // For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
-    // You may manually call LoadIniSettingsFromMemory() to load settings from your own storage.
-    io.IniFilename = nullptr;
-    EMSCRIPTEN_MAINLOOP_BEGIN
-#else
+    // Main loop
     while (!done)
-#endif
     {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        // [If using SDL_MAIN_USE_CALLBACKS: call ImGui_ImplSDL3_ProcessEvent() from your SDL_AppEvent() function]
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
@@ -198,23 +170,21 @@ int main(int, char**)
             ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
             ImGui::Begin("Janela do Transmissor", nullptr, ImGuiWindowFlags_NoCollapse);
 
+            // Fonte = Mensagem de input do usuário
             ImGui::InputText("Mensagem", &ASCII);
 
-            // Codificador de Fonte
+            // Codificador de Fonte = Transforma os símbolos em bits conforme tabela ASCII
             binario_transmite = codificadorDeFonte(ASCII);
             for (bool bit : binario_transmite) {
                 for(int i = 0; i < VISIBILITY_MULTIPLIER; ++i)  // Repete cada bit VISIBILITY_MULTIPLIER vezes para melhor visualização
                     samples_codificador_fonte.push_back((bit ? 1.0f : 0.0f)*MAX_VOLTAGE_LEVEL);
             }
             ImGui::PlotLines(
-                "Amostras Codificador Fonte",                     // label
-                samples_codificador_fonte.data(),                // values pointer
-                static_cast<int>(samples_codificador_fonte.size()), // count
-                0,  
-                nullptr,   
-                -MAX_VOLTAGE_LEVEL,   
-                MAX_VOLTAGE_LEVEL,  
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=125
+                "Amostras Codificador Fonte", samples_codificador_fonte.data(),
+                static_cast<int>(samples_codificador_fonte.size()),
+                0, nullptr,   
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,  
+                ImVec2(0, 75)
             );
             ImGui::Text("Bits transmitidos: %d", static_cast<int>(binario_transmite.size()));
             ImGui::Text("Bits: %s", [&]() {
@@ -225,17 +195,14 @@ int main(int, char**)
                 return bits_str.c_str();
             }());
 
-            // Codificador de Canal
+            // Codificador de Canal = Codifica os bits da fonte
             bifase_codificador = codificadorDeCanal(binario_transmite);
             samples_codificador_canal = bifase_codificador;
             ImGui::PlotLines(
-                "Amostras Codificador Canal",                     // label
-                samples_codificador_canal.data(),                // values pointer
-                static_cast<int>(samples_codificador_canal.size()), // count
-                0,                             // values_offset
-                nullptr,           
-                -MAX_VOLTAGE_LEVEL,   
-                MAX_VOLTAGE_LEVEL,   
+                "Amostras Codificador Canal", samples_codificador_canal.data(),
+                static_cast<int>(samples_codificador_canal.size()),
+                0, nullptr,           
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,   
                 ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
             );
             ImGui::Text("Bits codificados: %d", static_cast<int>(bifase_codificador.size()/T_CONSTANT));
@@ -249,24 +216,10 @@ int main(int, char**)
                 return bits_str.c_str();
             }());
 
-            // Modulação por chaveamento de fase (PSK)
-            // Generate samples and plot them
-            /*vector<float> samples;
-            for (int n = 0; n < bifase_codificador.size()*2; n++)
-                samples.push_back(sinf(n * 0.25f * PI));
-            ImGui::PlotLines(
-                "Sinal Portadora",               // label
-                samples.data(),                // values pointer
-                static_cast<int>(samples.size()), // count
-                0,                             // values_offset
-                nullptr,                    
-                -1.0f,   
-                1.0f,      
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
-            );*/
-
+            // Seleciona o tipo de modulação
             ImGui::Combo("Tipo de Modulação", &current_modulation_type, "BPSK\0QPSK\0", 2);
 
+            // Utiliza a modulação selecionada
             if(current_modulation_type == 0)
                 samples_modulador_psk = moduladorBPSK(bifase_codificador);
             else    
@@ -276,27 +229,27 @@ int main(int, char**)
                 samples_modulador_psk = moduladorQPSK(bifase_codificador);
             }
             ImGui::PlotLines(
-                "Sinal Modulado",                     // label
-                samples_modulador_psk.data(),                // values pointer
-                static_cast<int>(samples_modulador_psk.size()), // count
-                0,                             // values_offset
-                nullptr,           
-                -MAX_VOLTAGE_LEVEL,   
-                MAX_VOLTAGE_LEVEL,   
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
+                "Sinal Modulado", samples_modulador_psk.data(),
+                static_cast<int>(samples_modulador_psk.size()),
+                0, nullptr,           
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,   
+                ImVec2(0, 75)
             );
 
+            // Sinal enviado para o meio de comunicação
             sinal_transmitido = samples_modulador_psk;
+
             ImGui::End();
         }
 
-        // Janela de gráficos do ruído
+        // Janela do meio de comunicação. Controla o ruído e mostra o sinal resultante do que foi transmitido + ruído
         {
             ImGui::SetNextWindowSize(ImVec2(SENDER_RECEIVER_WIDTH, SENDER_RECEIVER_HEIGHT/2), ImGuiCond_Once);
             ImGui::SetNextWindowPos(ImVec2(10, SENDER_RECEIVER_HEIGHT + 10), ImGuiCond_Once);
             ImGui::Begin("Meio em que o sinal trafega", nullptr, ImGuiWindowFlags_NoCollapse);
 
-             ImGui::SliderFloat("Nível de Ruído", &noise_level, 0.0f, 1.0f*(MAX_VOLTAGE_LEVEL*2), "%.2f");
+            // Define o nível de ruído
+            ImGui::SliderFloat("Nível de Ruído", &noise_level, 0.0f, 1.0f*(MAX_VOLTAGE_LEVEL*2), "%.2f");
 
             // Ruído branco
             // (Simplesmente adiciona valores aleatórios entre -NOISE_LEVEL e +NOISE_LEVEL)
@@ -304,74 +257,63 @@ int main(int, char**)
                 canal_ruido.push_back(((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * noise_level);
             }
             ImGui::PlotLines(
-                "Ruído",                     // label
-                canal_ruido.data(),                        // values pointer
-                static_cast<int>(canal_ruido.size()),      // count
-                0,                             // values_offset
-                nullptr,
-                -MAX_VOLTAGE_LEVEL,
-                MAX_VOLTAGE_LEVEL, 
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
+                "Ruído", canal_ruido.data(),
+                static_cast<int>(canal_ruido.size()),
+                0, nullptr,
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL, 
+                ImVec2(0, 75)
             );
 
+            // Soma o sinal e o ruído para obter a componente sinal + ruído, que é enviada para o receptor
             for (int i = 0; i < sinal_transmitido.size(); ++i) {
                 sinal_recebido_com_ruido.push_back(sinal_transmitido[i] + canal_ruido[i]);
             }
             ImGui::PlotLines(
-                "Sinal + Ruído",                     // label
-                sinal_recebido_com_ruido.data(),                // values pointer
-                static_cast<int>(sinal_recebido_com_ruido.size()), // count
-                0,                             // values_offset
-                nullptr,
-                -MAX_VOLTAGE_LEVEL*2,                   
-                MAX_VOLTAGE_LEVEL*2,                
-                ImVec2(0, 100)                 // graph_size: width=0 (auto), height=200
+                "Sinal + Ruído", sinal_recebido_com_ruido.data(),
+                static_cast<int>(sinal_recebido_com_ruido.size()), 
+                0, nullptr,
+                -MAX_VOLTAGE_LEVEL*2, MAX_VOLTAGE_LEVEL*2,                
+                ImVec2(0, 100)
             );
 
             ImGui::End();
         }
 
-        // Janela de gráficos do receptor
+        // Janela do receptor
         {
             ImGui::SetNextWindowSize(ImVec2(SENDER_RECEIVER_WIDTH, SENDER_RECEIVER_HEIGHT), ImGuiCond_Once);
             ImGui::SetNextWindowPos(ImVec2(SENDER_RECEIVER_WIDTH + 10, 10), ImGuiCond_Once);
             ImGui::Begin("Janela do Receptor", nullptr, ImGuiWindowFlags_NoCollapse);
 
-            // Demodulador PSK
+            // Demodulador do sinal após receber do meio
+            // Demodula conforme o que foi selecionado na janela do transmissor (deve ser o mesmo em ambos os lados)
             if(current_modulation_type == 0)
                 samples_demodulador_psk = demoduladorBPSK(sinal_recebido_com_ruido);
             else
                 samples_demodulador_psk = demoduladorQPSK(sinal_recebido_com_ruido);
             ImGui::PlotLines(
-                "Sinal Demodulado",                     // label
-                samples_demodulador_psk.data(),                // values pointer
-                static_cast<int>(samples_demodulador_psk.size()), // count
-                0,                             // values_offset
-                nullptr,
-                -MAX_VOLTAGE_LEVEL,
-                MAX_VOLTAGE_LEVEL,
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
+                "Sinal Demodulado", samples_demodulador_psk.data(),
+                static_cast<int>(samples_demodulador_psk.size()),
+                0, nullptr,
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,
+                ImVec2(0, 75)
             );
 
-            // Reamostra o sinal demodulado
+            // Reamostra o sinal demodulado (Tenta reconstruir o sinal resultante da modulação do lado do receptor).
+            // Esse modo é um teste para ver se dá para recriar o sinal demodulado com facilidade.
             vector<float> sinal_reamostrado;
             for (size_t i = T_CONSTANT/2; i < samples_demodulador_psk.size(); i+=T_CONSTANT) {
-                for(int j = 0; j < T_CONSTANT; ++j)  // Repete cada amostra T_CONSTANT vezes para melhor visualização
-                    sinal_reamostrado.push_back(samples_demodulador_psk[i] >= 0.0f ? MAX_VOLTAGE_LEVEL : -MAX_VOLTAGE_LEVEL);
+                sinal_reamostrado.push_back(samples_demodulador_psk[i] >= 0.0f ? MAX_VOLTAGE_LEVEL : -MAX_VOLTAGE_LEVEL);
             }
             ImGui::PlotLines(
-                "Sinal Reamostrado",                     // label
-                sinal_reamostrado.data(),                // values pointer
-                static_cast<int>(sinal_reamostrado.size()), // count
-                0,                             // values_offset
-                nullptr,
-                -MAX_VOLTAGE_LEVEL,
-                MAX_VOLTAGE_LEVEL,
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
+                "Sinal Reamostrado", sinal_reamostrado.data(),
+                static_cast<int>(sinal_reamostrado.size()),
+                0, nullptr,
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,
+                ImVec2(0, 75)
             );
 
-
-            // Decodificador de Canal
+            // Decodificador de Canal. Trasnforma os bits 
             string bits_str;
             binario_recebido = decodificadorDeCanal(samples_demodulador_psk);
             for (bool bit : binario_recebido) {
@@ -380,43 +322,42 @@ int main(int, char**)
                     samples_decodificador_canal.push_back((bit ? 1.0f : 0.0f)*MAX_VOLTAGE_LEVEL);
             }
             ImGui::PlotLines(
-                "Sinal Decodificado do Canal",                     // label
-                samples_decodificador_canal.data(),                // values pointer
-                static_cast<int>(samples_decodificador_canal.size()), // count
-                0,                             // values_offset
-                nullptr,                       // overlay_text
-                -MAX_VOLTAGE_LEVEL,
-                MAX_VOLTAGE_LEVEL,
-                ImVec2(0, 75)                 // graph_size: width=0 (auto), height=200
+                "Sinal Decodificado do Canal", samples_decodificador_canal.data(),
+                static_cast<int>(samples_decodificador_canal.size()),
+                0, nullptr,
+                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,
+                ImVec2(0, 75)
             );
             ImGui::Text("Bits recebidos: %d", static_cast<int>(binario_recebido.size()));
             ImGui::Text("Bits: %s", bits_str.c_str());
 
             // Decodificador de Fonte
             string ASCII_resultante = decodificadorDeFonte(binario_recebido);
-
             // Mostra o texto decodificado
             ImGui::Text("Texto decodificado = %s", ASCII_resultante.c_str());
 
+            // Calcula os bits com erro
             for(int i = 0; i < binario_recebido.size() && i < binario_transmite.size(); ++i) {
                 total_bits++;
                 if(binario_recebido[i] != binario_transmite[i])
                     error_bits++;
             }
 
+            // Atualiza a informação da taxa de erro de bits (Bit Error Rate)
             current_time += ImGui::GetIO().DeltaTime;
             if(current_time - last_time >= 1.0) {
                 last_time = current_time;
                 ber = (total_bits > 0) ? static_cast<double>(error_bits) / static_cast<double>(total_bits) : 0.0;
+                ber *= 100; // Converte para porcentagem
                 total_bits = 0;
                 error_bits = 0;
             }
-            ImGui::Text("Taxa de Erro de Bit (BER): %.5f", ber);
+            ImGui::Text("Taxa de Erro de Bit (BER): %.3f%%", ber);
             
             ImGui::End();
         }
 
-        // Rendering
+        // Renderiza
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
@@ -424,12 +365,8 @@ int main(int, char**)
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);
     }
-#ifdef __EMSCRIPTEN__
-    EMSCRIPTEN_MAINLOOP_END;
-#endif
 
-    // Cleanup
-    // [If using SDL_MAIN_USE_CALLBACKS: all code below would likely be your SDL_AppQuit() function]
+    // Limpa e destrói itens antes de finalizar
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
@@ -455,8 +392,9 @@ vector<float> moduladorBPSK(const vector<float>& sinal_codificado) {
 vector<float> demoduladorBPSK(const vector<float>& sinal_recebido) {
     vector<float> sinal_demodulado;
     for (size_t i = 0; i < sinal_recebido.size(); ++i) {
-        float portadora = sinf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
-        float produto = sinal_recebido[i] * portadora; // Multiply the received signal with the carrier signal
+        float t = (i / static_cast<float>(SAMPLE_RATE));
+        float portadora = sinf(2.0f * 3.14159f * F_CARRIER * t);
+        float produto = sinal_recebido[i] * portadora;
         sinal_demodulado.push_back(produto);
     }
     return sinal_demodulado;

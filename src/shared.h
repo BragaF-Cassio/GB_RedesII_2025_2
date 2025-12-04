@@ -2,6 +2,6 @@
 #define SHARED_H
 
 #define MAX_VOLTAGE_LEVEL 5.0f
-#define T_CONSTANT 4
+#define T_CONSTANT 1
 
 #endif // SHARED_H

@@ -356,7 +356,7 @@ int main(int, char**)
             // Reamostra o sinal demodulado
             vector<float> sinal_reamostrado;
             for (size_t i = T_CONSTANT/2; i < samples_demodulador_psk.size(); i+=T_CONSTANT) {
-                for(int j = 0; j < T_CONSTANT; ++j)  // Repete cada amostra T_CONSTANT vezes para melhor visualização
+                //for(int j = 0; j < T_CONSTANT; ++j)  // Repete cada amostra T_CONSTANT vezes para melhor visualização
                     sinal_reamostrado.push_back(samples_demodulador_psk[i] >= 0.0f ? MAX_VOLTAGE_LEVEL : -MAX_VOLTAGE_LEVEL);
             }
             ImGui::PlotLines(
@@ -442,16 +442,14 @@ int main(int, char**)
 }
 
 vector<float> moduladorPSK(const vector<float>& sinal_codificado) {
+    const float phase_step = 3.14159f; // 180 graus em radianos
     vector<float> sinal_modulado;
     for (size_t i = 0; i < sinal_codificado.size(); ++i) {
-        float portadora = sinf(2.0f * 3.14159f * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
-        if (sinal_codificado[i] > 0.0f) {
-            // Bit 1: fase 0
-            sinal_modulado.push_back(portadora * MAX_VOLTAGE_LEVEL);
-        } else {
-            // Bit 0: fase PI (inversão da portadora)
-            sinal_modulado.push_back(-portadora * MAX_VOLTAGE_LEVEL);
-        }
+        uint8_t symbol = (uint8_t)((sinal_codificado[i] > 0.01f ? 0 : 1));
+        float phase = symbol * phase_step;
+        float t = (i / static_cast<float>(SAMPLE_RATE));
+        float portadora = sinf((2.0f * 3.14159f * F_CARRIER * t) + phase);
+        sinal_modulado.push_back(portadora * MAX_VOLTAGE_LEVEL);
     }
     return sinal_modulado;
 }
@@ -459,8 +457,9 @@ vector<float> moduladorPSK(const vector<float>& sinal_codificado) {
 vector<float> demoduladorPSK(const vector<float>& sinal_recebido) {
     vector<float> sinal_demodulado;
     for (size_t i = 0; i < sinal_recebido.size(); ++i) {
-        float portadora = sinf(2.0f * 3.14159f * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
-        float produto = sinal_recebido[i] * portadora; // Multiply the received signal with the carrier signal
+        float t = (i / static_cast<float>(SAMPLE_RATE));
+        float portadora = sinf(2.0f * 3.14159f * F_CARRIER * t);
+        float produto = sinal_recebido[i] * portadora;
         sinal_demodulado.push_back(produto);
     }
     return sinal_demodulado;

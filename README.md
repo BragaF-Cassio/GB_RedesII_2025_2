@@ -34,6 +34,23 @@ Aplica um ruído branco no sinal antes de realizar as etapas de decodificação 
 ## Demodulação e decodificação
 Quando o sinal é demodulado, calcula a BER baseada na quantidade de bits que é diferente dos bits transmitidos.
 
+![Modelo de Referência](docs/ref-model.png)
+A imagem de modelo de referência é creditada ao professor Cristiano Bonato Both, da disciplina de Redes de Computadores: Internetworking, Roteamento e Transmissão.
+
+## 🎥 O vídeo de demonstração pode ser visto [aqui](https://streamable.com/m0fe04)
+
+## 📈 Gráfico da BER em função da SRN
+![Gráfico BER x SRN](docs/graph.png)
+
+## Análise dos gráficos:
+- QPSK apresenta melhor desempenho com menor BER em 4.5dB (0.15%)
+- BPSK tem desempenho próximo ao QPSK (0.325% em 4.5dB)
+- ASK apresenta pior desempenho com 50% de BER em baixo SNR
+
+# Como Executar
+Abaixo uma descrição de como realizar a compilação e execução do projeto.
+Créditos à professora Rossana Baptista Queiroz de Processamento Gráfico pela descrição, que funciona da mesma forma que em nosso projeto.
+
 # Configuração do Ambiente para Computação Gráfica com <img src="https://github.com/user-attachments/assets/db96047c-5e1a-4656-a3af-ee3432f9f35a" alt="OpenGL Logo" height="32" style="vertical-align: middle;" />
 
 Este tutorial irá guiá-lo pela instalação e configuração do ambiente para rodar projetos OpenGL com **CMake** e **VS Code**, utilizando o **MinGW-UCRT64** como compilador (portanto, no **Windows** <img src="https://github.com/user-attachments/assets/ad835449-5f61-4907-a116-b9ced2c8e30d" alt="MS Windows Logo" height="16" style="vertical-align: middle;" />).
@@ -143,8 +160,7 @@ Agora vamos baixar o código de exemplo:
 ```sh
 git clone https://github.com/BragaF-Cassio/GB_RedesII_2025_2.git
 ```
-Se você nunca usou o git, pode fazê-lo utilizando o 🔗 [Github Desktop](https://desktop.github.com/download/). Para isso, consulte o seguinte material:
-- [Tutorial de Entregas pelo Github](TutorialEntregasGithub.pdf)
+Se você nunca usou o git, pode fazê-lo utilizando o 🔗 [Github Desktop](https://desktop.github.com/download/).
 
 2️⃣ Abra o VS Code e vá em `Arquivo -> Abrir Diretório` (ou `File -> Open Folder`). Selecione o diretório onde você clonou o repositório de exemplo.
 
@@ -194,15 +210,5 @@ Se tudo estiver correto, o projeto será compilado e executado com sucesso! 🚀
 
 ---
 
-![Modelo de Referência](docs/ref-model.png)
 
-## 🎥 O vídeo de demonstração pode ser visto [aqui](https://streamable.com/m0fe04)
-
-## 📈 Gráfico da BER em função da SRN
-![Gráfico BER x SRN](docs/graph.png)
-
-## Análise dos gráficos:
-- QPSK apresenta melhor desempenho com menor BER em 4.5dB (0.15%)
-- BPSK tem desempenho próximo ao QPSK (0.325% em 4.5dB)
-- ASK apresenta pior desempenho com 50% de BER em baixo SNR
 

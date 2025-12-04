@@ -28,13 +28,17 @@ vector<float> moduladorASK(const vector<float>& sinal_codificado);
 vector<float> demoduladorASK(const vector<float>& sinal_recebido);
 vector<float> moduladorBPSK(const vector<float>& sinal_codificado);
 vector<float> demoduladorBPSK(const vector<float>& sinal_recebido);
-vector<float> moduladorQPSK(const vector<float>& sinal_codificado);
-vector<float> demoduladorQPSK(const vector<float>& sinal_recebido);
+vector<float> moduladorQPSK_old(const vector<float>& sinal_codificado);
+vector<float> demoduladorQPSK_old(const vector<float>& sinal_recebido);
+pair<vector<float>,vector<float>> moduladorQPSK(const vector<float>& sinal_codificado);
+vector<float> demoduladorQPSK(const pair<vector<float>,vector<float>>& sinal_recebido);
+void geraRuido(SIZE_T n, vector<float>& canal_ruido, float noise_level);
 
 enum ModulationType {
   BPSK,
   QPSK,
   ASK,
+  QPSK_OLD,
   MAX_MODULATION_TYPES
 };
 
@@ -165,9 +169,12 @@ int main(int, char**)
         vector<float> samples_codificador_canal;
         vector<float> samples_modulador_psk;
         vector<float> sinal_transmitido;
+        pair<vector<float>,vector<float>> sinal_bifase_transmitido;
 
         vector<float> canal_ruido;
 
+        pair<vector<float>,vector<float>> sinal_bifase_recebido_com_ruido;
+        pair<vector<float>,vector<float>> sample_bifase;
         vector<float> sinal_recebido_com_ruido;
         vector<float> bifase_demodulador_psk;
         vector<float> samples_demodulador_psk;
@@ -230,26 +237,50 @@ int main(int, char**)
             }());
 
             // Seleciona o tipo de modulação
-            ImGui::Combo("Tipo de Modulação", (int *)(&current_modulation_type), "BPSK\0QPSK\0ASK\0", MAX_MODULATION_TYPES);
+            ImGui::Combo("Tipo de Modulação", (int *)(&current_modulation_type), "BPSK\0QPSK\0ASK\0QPSK OLD\0", MAX_MODULATION_TYPES);
 
             // Utiliza a modulação selecionada
             if(current_modulation_type == BPSK)
                 samples_modulador_psk = moduladorBPSK(bifase_codificador);
             else if(current_modulation_type == QPSK)
-                samples_modulador_psk = moduladorQPSK(bifase_codificador);
-            if(current_modulation_type == ASK)
+                sample_bifase = moduladorQPSK(bifase_codificador);
+            else if(current_modulation_type == ASK)
                 samples_modulador_psk = moduladorASK(bifase_codificador);
+            else if(current_modulation_type == QPSK_OLD)
+                samples_modulador_psk = moduladorQPSK_old(bifase_codificador);
 
-            ImGui::PlotLines(
-                "Sinal Modulado", samples_modulador_psk.data(),
-                static_cast<int>(samples_modulador_psk.size()),
-                0, nullptr,           
-                -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,   
-                ImVec2(0, 75)
-            );
+            if(current_modulation_type != QPSK)
+            {
+                ImGui::PlotLines(
+                    "Sinal Modulado", samples_modulador_psk.data(),
+                    static_cast<int>(samples_modulador_psk.size()),
+                    0, nullptr,           
+                    -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,   
+                    ImVec2(0, 75)
+                );
+            }
+            else
+            {
+                ImGui::PlotLines(
+                    "X: Sinal Modulado", sample_bifase.first.data(),
+                    static_cast<int>(sample_bifase.first.size()),
+                    0, nullptr,           
+                    -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,   
+                    ImVec2(0, 75)
+                );
+
+                ImGui::PlotLines(
+                    "Y: Sinal Modulado", sample_bifase.second.data(),
+                    static_cast<int>(sample_bifase.second.size()),
+                    0, nullptr,           
+                    -MAX_VOLTAGE_LEVEL, MAX_VOLTAGE_LEVEL,   
+                    ImVec2(0, 75)
+                );
+            }
 
             // Sinal enviado para o meio de comunicação
             sinal_transmitido = samples_modulador_psk;
+            sinal_bifase_transmitido = sample_bifase;
 
             ImGui::End();
         }
@@ -265,8 +296,21 @@ int main(int, char**)
 
             // Ruído branco
             // (Simplesmente adiciona valores aleatórios entre -NOISE_LEVEL e +NOISE_LEVEL)
-            for (int i = 0; i < sinal_transmitido.size(); ++i) {
-                canal_ruido.push_back(((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * noise_level);
+            // Soma o sinal e o ruído para obter a componente sinal + ruído, que é enviada para o receptor
+            if(current_modulation_type != QPSK){
+                geraRuido(sinal_transmitido.size(), canal_ruido, noise_level);
+                for (int i = 0; i < sinal_transmitido.size(); ++i) {
+                    sinal_recebido_com_ruido.push_back(sinal_transmitido[i] + canal_ruido[i]);
+                }
+            } else {
+                geraRuido(sinal_bifase_transmitido.first.size(), canal_ruido, noise_level);
+                for (int i = 0; i < sinal_bifase_transmitido.first.size(); ++i) {
+                    sinal_bifase_recebido_com_ruido.first.push_back(sinal_bifase_transmitido.first[i] + canal_ruido[i]);
+                }
+                geraRuido(sinal_bifase_transmitido.second.size(), canal_ruido, noise_level);
+                for (int i = 0; i < sinal_bifase_transmitido.second.size(); ++i) {
+                    sinal_bifase_recebido_com_ruido.second.push_back(sinal_bifase_transmitido.second[i] + canal_ruido[i]);
+                }
             }
 
             if(fpclassify(noise_level) != FP_ZERO)
@@ -282,17 +326,34 @@ int main(int, char**)
                 ImVec2(0, 75)
             );
 
-            // Soma o sinal e o ruído para obter a componente sinal + ruído, que é enviada para o receptor
-            for (int i = 0; i < sinal_transmitido.size(); ++i) {
-                sinal_recebido_com_ruido.push_back(sinal_transmitido[i] + canal_ruido[i]);
+            if(current_modulation_type != QPSK)
+            {
+                ImGui::PlotLines(
+                    "Sinal + Ruído", sinal_recebido_com_ruido.data(),
+                    static_cast<int>(sinal_recebido_com_ruido.size()), 
+                    0, nullptr,
+                    -MAX_VOLTAGE_LEVEL*2, MAX_VOLTAGE_LEVEL*2,                
+                    ImVec2(0, 75)
+                );
             }
-            ImGui::PlotLines(
-                "Sinal + Ruído", sinal_recebido_com_ruido.data(),
-                static_cast<int>(sinal_recebido_com_ruido.size()), 
-                0, nullptr,
-                -MAX_VOLTAGE_LEVEL*2, MAX_VOLTAGE_LEVEL*2,                
-                ImVec2(0, 75)
-            );
+            else
+            {
+                ImGui::PlotLines(
+                    "X: Sinal + Ruído", sinal_bifase_recebido_com_ruido.first.data(),
+                    static_cast<int>(sinal_bifase_recebido_com_ruido.first.size()), 
+                    0, nullptr,
+                    -MAX_VOLTAGE_LEVEL*2, MAX_VOLTAGE_LEVEL*2,                
+                    ImVec2(0, 75)
+                );
+
+                ImGui::PlotLines(
+                    "Y: Sinal + Ruído", sinal_bifase_recebido_com_ruido.second.data(),
+                    static_cast<int>(sinal_bifase_recebido_com_ruido.second.size()), 
+                    0, nullptr,
+                    -MAX_VOLTAGE_LEVEL*2, MAX_VOLTAGE_LEVEL*2,                
+                    ImVec2(0, 75)
+                );
+            }
 
             ImGui::End();
         }
@@ -308,9 +369,11 @@ int main(int, char**)
             if(current_modulation_type == BPSK)
                 bifase_demodulador_psk = demoduladorBPSK(sinal_recebido_com_ruido);
             else if(current_modulation_type == QPSK)
-                bifase_demodulador_psk = demoduladorQPSK(sinal_recebido_com_ruido);
+                bifase_demodulador_psk = demoduladorQPSK(sinal_bifase_recebido_com_ruido);
             else if(current_modulation_type == ASK)
                 bifase_demodulador_psk = demoduladorASK(sinal_recebido_com_ruido);
+            else if(current_modulation_type == QPSK_OLD)
+                bifase_demodulador_psk = demoduladorQPSK_old(sinal_recebido_com_ruido);
 
             for (float data : bifase_demodulador_psk) {
                 for(int i = 0; i < VISIBILITY_MULTIPLIER; ++i)  // Repete cada bit VISIBILITY_MULTIPLIER vezes para melhor visualização
@@ -429,37 +492,26 @@ vector<float> demoduladorBPSK(const vector<float>& sinal_recebido) {
     return sinal_demodulado;
 }
 
-vector<float> moduladorQPSK(const vector<float>& sinal_codificado) {
-    vector<float> sinal_modulado;
-    for (size_t i = 0; i < sinal_codificado.size(); i += 2) {
-        float bit_I = (i < sinal_codificado.size() && sinal_codificado[i] > 0.0f) ? 1.0f : -1.0f;
-        float bit_Q = (i + 1 < sinal_codificado.size() && sinal_codificado[i + 1] > 0.0f) ? 1.0f : -1.0f;
-        for (size_t j = 0; j < 2; ++j) {
-            size_t sample_idx = i + j;
-            float portadora_I = cosf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
-            float portadora_Q = sinf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
-            float simbolo = (bit_I * portadora_I + bit_Q * portadora_Q) * MAX_VOLTAGE_LEVEL;
-            sinal_modulado.push_back(simbolo);
-        }
+pair<vector<float>,vector<float>> moduladorQPSK(const vector<float>& sinal_codificado) {
+    pair<vector<float>,vector<float>> sinal_modulado;
+    for (size_t i = 0; i < sinal_codificado.size(); ++i) {
+        float portadora_I = cosf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
+        float portadora_Q = sinf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
+        float bit = sinal_codificado[i];
+        sinal_modulado.first.push_back(bit * portadora_I);
+        sinal_modulado.second.push_back(bit * portadora_Q);
     }
     return sinal_modulado;
 }
 
-vector<float> demoduladorQPSK(const vector<float>& sinal_recebido) {
+vector<float> demoduladorQPSK(const pair<vector<float>,vector<float>>& sinal_recebido) {
     vector<float> sinal_demodulado;
-    for (size_t i = 0; i < sinal_recebido.size(); i += 2) {
-        float soma_I = 0.0f;
-        float soma_Q = 0.0f;
-        for (size_t j = 0; j < 2; ++j) {
-            size_t sample_idx = i + j;
-            if (sample_idx >= sinal_recebido.size()) break;
-            float portadora_I = cosf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
-            float portadora_Q = sinf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
-            soma_I += sinal_recebido[sample_idx] * portadora_I;
-            soma_Q += sinal_recebido[sample_idx] * portadora_Q;
-        }
-        sinal_demodulado.push_back(soma_I);
-        sinal_demodulado.push_back(soma_Q);
+    for (size_t i = 0; i < sinal_recebido.first.size(); ++i) {
+        float portadora_I = cosf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
+        float portadora_Q = sinf(2.0f * PI * F_CARRIER * (i / static_cast<float>(SAMPLE_RATE)));
+        float sinal_combinado = sinal_recebido.first[i] + sinal_recebido.second[i];
+        float produto = sinal_combinado * (portadora_I + portadora_Q);
+        sinal_demodulado.push_back(produto);
     }
     return sinal_demodulado;
 }
@@ -503,4 +555,45 @@ vector<float> demoduladorASK(const vector<float>& sinal_recebido) {
         if(j >= carrier_signal) sinal_demodulado.push_back(-MAX_VOLTAGE_LEVEL);
     }
     return sinal_demodulado;
+}
+
+vector<float> moduladorQPSK_old(const vector<float>& sinal_codificado) {
+    vector<float> sinal_modulado;
+    for (size_t i = 0; i < sinal_codificado.size(); i += 2) {
+        float bit_I = (i < sinal_codificado.size() && sinal_codificado[i] > 0.0f) ? 1.0f : -1.0f;
+        float bit_Q = (i + 1 < sinal_codificado.size() && sinal_codificado[i + 1] > 0.0f) ? 1.0f : -1.0f;
+        for (size_t j = 0; j < 2; ++j) {
+            size_t sample_idx = i + j;
+            float portadora_I = cosf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            float portadora_Q = sinf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            float simbolo = (bit_I * portadora_I + bit_Q * portadora_Q) * MAX_VOLTAGE_LEVEL;
+            sinal_modulado.push_back(simbolo);
+        }
+    }
+    return sinal_modulado;
+}
+
+vector<float> demoduladorQPSK_old(const vector<float>& sinal_recebido) {
+    vector<float> sinal_demodulado;
+    for (size_t i = 0; i < sinal_recebido.size(); i += 2) {
+        float soma_I = 0.0f;
+        float soma_Q = 0.0f;
+        for (size_t j = 0; j < 2; ++j) {
+            size_t sample_idx = i + j;
+            if (sample_idx >= sinal_recebido.size()) break;
+            float portadora_I = cosf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            float portadora_Q = sinf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            soma_I += sinal_recebido[sample_idx] * portadora_I;
+            soma_Q += sinal_recebido[sample_idx] * portadora_Q;
+        }
+        sinal_demodulado.push_back(soma_I);
+        sinal_demodulado.push_back(soma_Q);
+    }
+    return sinal_demodulado;
+}
+
+void geraRuido(SIZE_T n, vector<float>& canal_ruido, float noise_level){
+    for (int i = 0; i < n; ++i) {
+        canal_ruido.push_back(((static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f) * noise_level);
+    }
 }

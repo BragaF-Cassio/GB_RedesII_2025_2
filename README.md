@@ -1,6 +1,10 @@
 # GB_RedesII_2025_2
 Trabalho do Grau B de Redes de Computadores: Internetworking, Roteamento e Transmissão. Curso de Ciência da Computação da UNISINOS 2025/2
 
+## Integrantes
+- Cássio F. Braga
+- Gabriel C. Walber
+
 # Configuração do Ambiente para Computação Gráfica com <img src="https://github.com/user-attachments/assets/db96047c-5e1a-4656-a3af-ee3432f9f35a" alt="OpenGL Logo" height="32" style="vertical-align: middle;" />
 
 Este tutorial irá guiá-lo pela instalação e configuração do ambiente para rodar projetos OpenGL com **CMake** e **VS Code**, utilizando o **MinGW-UCRT64** como compilador (portanto, no **Windows** <img src="https://github.com/user-attachments/assets/ad835449-5f61-4907-a116-b9ced2c8e30d" alt="MS Windows Logo" height="16" style="vertical-align: middle;" />).
@@ -167,3 +171,9 @@ Se tudo estiver correto, o projeto será compilado e executado com sucesso! 🚀
 
 ## 📈 Gráfico da BER em função da SRN
 ![Gráfico BER x SRN](docs/graph.png)
+
+## Análise dos gráficos:
+- QPSK apresenta melhor desempenho com menor BER em 4.5dB (0.15%)
+- BPSK tem desempenho próximo ao QPSK (0.325% em 4.5dB)
+- ASK apresenta pior desempenho com 50% de BER em baixo SNR
+

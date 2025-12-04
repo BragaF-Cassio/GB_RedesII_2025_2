@@ -464,10 +464,35 @@ vector<float> demoduladorBPSK(const vector<float>& sinal_recebido) {
 
 vector<float> moduladorQPSK(const vector<float>& sinal_codificado) {
     vector<float> sinal_modulado;
+    for (size_t i = 0; i < sinal_codificado.size(); i += 2) {
+        float bit_I = (i < sinal_codificado.size() && sinal_codificado[i] > 0.0f) ? 1.0f : -1.0f;
+        float bit_Q = (i + 1 < sinal_codificado.size() && sinal_codificado[i + 1] > 0.0f) ? 1.0f : -1.0f;
+        for (size_t j = 0; j < 2; ++j) {
+            size_t sample_idx = i + j;
+            float portadora_I = cosf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            float portadora_Q = sinf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            float simbolo = (bit_I * portadora_I + bit_Q * portadora_Q) * MAX_VOLTAGE_LEVEL;
+            sinal_modulado.push_back(simbolo);
+        }
+    }
     return sinal_modulado;
 }
 
 vector<float> demoduladorQPSK(const vector<float>& sinal_recebido) {
     vector<float> sinal_demodulado;
+    for (size_t i = 0; i < sinal_recebido.size(); i += 2) {
+        float soma_I = 0.0f;
+        float soma_Q = 0.0f;
+        for (size_t j = 0; j < 2; ++j) {
+            size_t sample_idx = i + j;
+            if (sample_idx >= sinal_recebido.size()) break;
+            float portadora_I = cosf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            float portadora_Q = sinf(2.0f * PI * F_CARRIER * (sample_idx / static_cast<float>(SAMPLE_RATE)));
+            soma_I += sinal_recebido[sample_idx] * portadora_I;
+            soma_Q += sinal_recebido[sample_idx] * portadora_Q;
+        }
+        sinal_demodulado.push_back(soma_I);
+        sinal_demodulado.push_back(soma_Q);
+    }
     return sinal_demodulado;
 }
